@@ -1,47 +1,87 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>TRON dApp — Trust Wallet</title>
+  <meta charset="UTF-8">
+  <title>TRON WalletConnect dApp</title>
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/client@1.7.8/dist/umd/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
 </head>
 <body>
-<h2>TRON dApp — Trust Wallet</h2>
-<button onclick="connectWallet()">Подключить кошелёк</button>
-<pre id="status">Ожидание...</pre>
+  <h2>TRON dApp (Trust Wallet + WalletConnect)</h2>
 
-<script>
-async function connectWallet() {
-    const status = document.getElementById("status");
+  <button id="connectBtn">Connect Wallet</button>
+  <p id="account">Not connected</p>
 
-    if (!window.tronWeb) {
-        status.textContent = "❌ Trust Wallet не найден (только мобильный браузер)";
+  <input type="text" id="to" placeholder="Recipient address">
+  <input type="number" id="amount" placeholder="Amount TRX">
+  <button id="sendBtn">Send TRX</button>
+
+  <p id="status"></p>
+
+  <script>
+    let connector;
+    let userAddress;
+
+    // Подключение кошелька
+    document.getElementById("connectBtn").onclick = async () => {
+      connector = new WalletConnect.default({
+        bridge: "https://bridge.walletconnect.org",
+        qrcodeModal: null // отключаем QR
+      });
+
+      if (!connector.connected) {
+        await connector.createSession();
+      }
+
+      // Deep link для Trust Wallet
+      const uri = connector.uri;
+      const trustLink = `trust://wc?uri=${encodeURIComponent(uri)}`;
+      window.open(trustLink, "_blank");
+
+      connector.on("connect", (error, payload) => {
+        if (error) throw error;
+        const { accounts } = payload.params[0];
+        userAddress = accounts[0];
+        document.getElementById("account").innerText = "Connected: " + userAddress;
+        document.getElementById("status").innerText = "Wallet connected!";
+      });
+
+      connector.on("disconnect", (error, payload) => {
+        if (error) throw error;
+        userAddress = null;
+        document.getElementById("account").innerText = "Not connected";
+        document.getElementById("status").innerText = "Wallet disconnected";
+      });
+    };
+
+    // Отправка TRX
+    document.getElementById("sendBtn").onclick = async () => {
+      if (!connector || !userAddress) {
+        alert("Connect wallet first");
         return;
-    }
+      }
 
-    // Ждём, пока кошелёк готов
-    const tronWeb = await new Promise((resolve, reject) => {
-        let tries = 0;
-        const interval = setInterval(() => {
-            if (window.tronWeb && window.tronWeb.ready) {
-                clearInterval(interval);
-                resolve(window.tronWeb);
-            }
-            tries++;
-            if (tries > 20) {
-                clearInterval(interval);
-                reject("Trust Wallet не готов");
-            }
-        }, 500);
-    });
+      const to = document.getElementById("to").value;
+      const amount = parseFloat(document.getElementById("amount").value);
 
-    const address = tronWeb.defaultAddress.base58;
-    status.textContent = `✅ Подключено: ${address}`;
+      if (!to || !amount) {
+        alert("Enter recipient and amount");
+        return;
+      }
 
-    // Получаем баланс TRX
-    const balanceSun = await tronWeb.trx.getBalance(address);
-    const balanceTRX = balanceSun / 1_000_000;
-    status.textContent += `\n💰 Баланс: ${balanceTRX} TRX`;
-}
-</script>
+      const tx = {
+        from: userAddress,
+        to: to,
+        value: amount * 1e6 // TRX → Sun
+      };
+
+      try {
+        const txHash = await connector.sendTransaction(tx);
+        document.getElementById("status").innerText = "Transaction Hash: " + txHash;
+      } catch (err) {
+        document.getElementById("status").innerText = "Transaction failed: " + err;
+      }
+    };
+  </script>
 </body>
 </html>
