@@ -5,59 +5,94 @@
     <script src="https://unpkg.com/tronweb@4.3.0/dist/TronWeb.js"></script>
 </head>
 <body>
-    <button id="connectBtn" onclick="connectTronLink()">Connect Trust Wallet</button>
+    <button id="connectBtn" onclick="connectWallet()">Connect Trust Wallet</button>
     <div id="balanceDiv" style="display: none;">
         <div>Balance: <span id="balanceAmount">0</span> TRX</div>
         <div>Address: <span id="accountAddress"></span></div>
-        <button onclick="disconnectWallet()">Disconnect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="refreshBalance()">Refresh</button>
     </div>
 
     <script>
         let tronWeb = null;
         let connectedAddress = null;
 
-        async function connectTronLink() {
+        // Проверяем, является ли устройство мобильным
+        function isMobile() {
+            return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        }
+
+        async function connectWallet() {
             const btn = document.getElementById('connectBtn');
             btn.disabled = true;
-            btn.textContent = 'Connecting...';
+            btn.textContent = 'Checking wallet...';
             
             try {
-                // Проверяем, установлен ли TronLink/Trust Wallet
+                // Способ 1: Проверяем, есть ли уже подключенный кошелек
                 if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-                    // Используем существующее подключение
+                    console.log('Found existing wallet connection');
                     tronWeb = window.tronWeb;
                     connectedAddress = tronWeb.defaultAddress.base58;
-                    await updateBalance();
-                    updateUI(true);
-                    return;
-                }
-
-                // Если кошелек не обнаружен
-                if (isMobileDevice()) {
-                    // На мобильном - открываем Trust Wallet
-                    window.location.href = 'https://link.trustwallet.com/open_url?coin_id=195&url=' + encodeURIComponent(window.location.href);
-                    setTimeout(() => {
-                        alert('Please open this page in Trust Wallet browser');
-                    }, 1000);
-                } else {
-                    // На десктопе - предлагаем установить TronLink
-                    if (confirm('Trust Wallet/TronLink not detected. Install extension?')) {
-                        window.open('https://chrome.google.com/webstore/detail/tronlink/ibnejdfjmmkpcnlpebklmnkoeoihofec', '_blank');
+                    
+                    // Проверяем, разрешен ли доступ
+                    const accounts = await tronWeb.request({method: 'tron_requestAccounts'});
+                    if (accounts && accounts.base58) {
+                        connectedAddress = accounts.base58;
+                        await showBalance();
+                        updateUI(true);
+                        return;
                     }
                 }
-
+                
+                // Способ 2: Пробуем запросить доступ
+                if (window.tronLink && window.tronLink.request) {
+                    console.log('Requesting access via tronLink');
+                    const result = await window.tronLink.request({method: 'tron_requestAccounts'});
+                    if (result && result.code === 200) {
+                        tronWeb = window.tronWeb;
+                        connectedAddress = window.tronWeb.defaultAddress.base58;
+                        await showBalance();
+                        updateUI(true);
+                        return;
+                    }
+                }
+                
+                // Способ 3: Если нет кошелька
+                if (isMobile()) {
+                    // На мобильном - говорим пользователю открыть в Trust Wallet
+                    alert('Please open this page in Trust Wallet browser\n\n1. Open Trust Wallet\n2. Tap DApps browser\n3. Enter this URL');
+                    btn.textContent = 'Open in Trust Wallet';
+                    btn.onclick = () => {
+                        // Пробуем открыть deep link для Trust Wallet
+                        window.location.href = 'https://link.trustwallet.com/open_url?coin_id=195&url=' + encodeURIComponent(window.location.href);
+                    };
+                } else {
+                    // На десктопе - предлагаем установить TronLink (совместим с Trust Wallet)
+                    if (confirm('Trust Wallet/TronLink not detected. For mobile: open in Trust Wallet browser. For desktop: install TronLink extension?')) {
+                        window.open('https://chrome.google.com/webstore/detail/tronlink/ibnejdfjmmkpcnlpebklmnkoeoihofec', '_blank');
+                    }
+                    btn.disabled = false;
+                    btn.textContent = 'Connect Trust Wallet';
+                }
+                
             } catch (error) {
                 console.error('Connection error:', error);
-                alert('Connection failed: ' + error.message);
-            } finally {
+                
+                // Показываем инструкцию
+                if (isMobile()) {
+                    alert('To connect:\n1. Open Trust Wallet\n2. Go to Browser tab\n3. Enter: ' + window.location.href + '\n4. Refresh page and try again');
+                } else {
+                    alert('Please install TronLink extension or open on mobile with Trust Wallet');
+                }
+                
                 btn.disabled = false;
                 btn.textContent = 'Connect Trust Wallet';
             }
         }
 
-        async function updateBalance() {
+        async function showBalance() {
             if (!tronWeb || !connectedAddress) {
-                alert('Not connected');
+                alert('Wallet not connected');
                 return;
             }
             
@@ -76,6 +111,10 @@
             }
         }
 
+        async function refreshBalance() {
+            await showBalance();
+        }
+
         function updateUI(isConnected) {
             const btn = document.getElementById('connectBtn');
             const balanceDiv = document.getElementById('balanceDiv');
@@ -91,30 +130,54 @@
             }
         }
 
-        function disconnectWallet() {
+        function disconnect() {
             tronWeb = null;
             connectedAddress = null;
             updateUI(false);
             console.log('Disconnected');
         }
 
-        function isMobileDevice() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        }
-
-        // Проверяем кошелек при загрузке
+        // Автоматическая проверка при загрузке
         window.addEventListener('load', () => {
-            // Периодически проверяем наличие кошелька
-            const checkWallet = setInterval(() => {
+            console.log('Page loaded, checking for wallet...');
+            
+            // Проверяем наличие кошелька каждые 500ms
+            let checkCount = 0;
+            const checkInterval = setInterval(() => {
+                checkCount++;
+                
                 if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                    console.log('Wallet detected automatically');
                     tronWeb = window.tronWeb;
                     connectedAddress = tronWeb.defaultAddress.base58;
-                    updateBalance();
+                    showBalance();
                     updateUI(true);
-                    clearInterval(checkWallet);
+                    clearInterval(checkInterval);
                 }
-            }, 1000);
+                
+                // Прекращаем проверку через 10 секунд
+                if (checkCount > 20) {
+                    clearInterval(checkInterval);
+                    console.log('Stopped checking for wallet');
+                }
+            }, 500);
         });
+
+        // Обработчик для событий от кошелька
+        if (window.tronWeb && window.tronWeb.on) {
+            window.tronWeb.on('addressChanged', (address) => {
+                console.log('Address changed:', address);
+                if (address && address.base58) {
+                    connectedAddress = address.base58;
+                    showBalance();
+                }
+            });
+            
+            window.tronWeb.on('disconnect', () => {
+                console.log('Wallet disconnected');
+                disconnect();
+            });
+        }
     </script>
 </body>
 </html>
