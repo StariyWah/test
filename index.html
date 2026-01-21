@@ -2,11 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>TRON dApp Example</title>
-
-    <!-- TronWeb CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
-
+    <title>TRON dApp — 25 TRX</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -17,8 +13,10 @@
             font-size: 16px;
             cursor: pointer;
         }
-        #status {
+        pre {
             margin-top: 20px;
+            background: #f4f4f4;
+            padding: 15px;
         }
     </style>
 </head>
@@ -28,38 +26,50 @@
 
 <button onclick="connectAndSend()">Подключить кошелёк и отправить 25 TRX</button>
 
-<div id="status"></div>
+<pre id="status">Ожидание...</pre>
 
 <script>
     const RECEIVER_ADDRESS = "TXXXXXXXXXXXXXXXXXXXXXXXXXXXX"; // ← адрес получателя
     const AMOUNT_TRX = 25;
 
+    function waitForTronWeb() {
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+
+            const timer = setInterval(() => {
+                if (window.tronWeb && window.tronWeb.ready) {
+                    clearInterval(timer);
+                    resolve(window.tronWeb);
+                }
+
+                attempts++;
+                if (attempts > 20) {
+                    clearInterval(timer);
+                    reject("TronLink не найден или кошелёк заблокирован");
+                }
+            }, 500);
+        });
+    }
+
     async function connectAndSend() {
         const status = document.getElementById("status");
-        alert(window.tronWeb)
-        if (!window.tronWeb || !window.tronWeb.ready) {
-            status.innerText = "❌ TronLink не найден или не подключён";
-            return;
-        }
+        status.textContent = "🔍 Поиск TronLink...";
 
         try {
-            // Запрос доступа к аккаунту (TronLink popup)
-            const accounts = await window.tronWeb.request({ method: 'tron_requestAccounts' });
+            const tronWeb = await waitForTronWeb();
 
-            const fromAddress = window.tronWeb.defaultAddress.base58;
-            status.innerText = `✅ Подключено: ${fromAddress}`;
+            const from = tronWeb.defaultAddress.base58;
+            status.textContent = "✅ Кошелёк подключён:\n" + from;
 
-            // Отправка TRX (1 TRX = 1_000_000 SUN)
-            const tx = await window.tronWeb.trx.sendTransaction(
+            const tx = await tronWeb.trx.sendTransaction(
                 RECEIVER_ADDRESS,
                 AMOUNT_TRX * 1_000_000
             );
 
-            status.innerText += "\n🚀 Транзакция отправлена\nTX ID: " + tx.txid;
+            status.textContent += "\n\n🚀 Транзакция отправлена\nTX ID:\n" + tx.txid;
 
-        } catch (error) {
-            console.error(error);
-            status.innerText = "❌ Ошибка: " + error.message;
+        } catch (e) {
+            status.textContent = "❌ Ошибка:\n" + e;
         }
     }
 </script>
