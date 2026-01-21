@@ -45,7 +45,7 @@
 <script>
 (async () => {
   const status = document.getElementById("status");
-
+alert(window.tronWeb)
   // ✅ Проверка TRON Web3-провайдера
   if (typeof window.tronWeb === "undefined" || !window.tronWeb.ready) {
     status.innerText = "❌ Откройте страницу через Trust Wallet (TRON)";
@@ -95,4 +95,5 @@
 
 </body>
 </html>
+
 
