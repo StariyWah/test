@@ -2,72 +2,46 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>TRON dApp — WalletConnect</title>
-<script src="https://cdn.jsdelivr.net/npm/@walletconnect/client@1.7.8/dist/umd/index.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
-<style>
-    body { font-family: Arial, sans-serif; padding: 40px; }
-    button { padding: 12px 20px; font-size: 16px; cursor: pointer; }
-    pre { margin-top: 20px; background: #f4f4f4; padding: 15px; white-space: pre-wrap; }
-</style>
+<title>TRON dApp — Trust Wallet</title>
 </head>
 <body>
-
-<h2>TRON dApp — WalletConnect1</h2>
-<button onclick="connectWallet()">Подключить Trust Wallet</button>
+<h2>TRON dApp — Trust Wallet</h2>
+<button onclick="connectWallet()">Подключить кошелёк</button>
 <pre id="status">Ожидание...</pre>
 
 <script>
-let walletConnector;
-let tronWeb;
-
 async function connectWallet() {
     const status = document.getElementById("status");
-    status.textContent = "🔍 Создаём соединение с WalletConnect...";
 
-    // 1️⃣ Создаём WalletConnect сессию
-    walletConnector = new WalletConnect.default({
-        bridge: "https://bridge.walletconnect.org"
-    });
-
-    // Если сессия не подключена, создаём новую и показываем URI
-    if (!walletConnector.connected) {
-        await walletConnector.createSession();
-        const uri = walletConnector.uri;
-        status.textContent = "📱 Отсканируйте QR-код Trust Wallet:\n" + uri;
+    if (!window.tronWeb) {
+        status.textContent = "❌ Trust Wallet не найден (только мобильный браузер)";
+        return;
     }
 
-    // Подписка на события подключения
-    walletConnector.on("connect", async (error, payload) => {
-        if (error) throw error;
-
-        const { accounts } = payload.params[0];
-        const userAddress = accounts[0];
-        status.textContent = "✅ Подключено: " + userAddress;
-
-        // 2️⃣ Инициализация TronWeb с Trust Wallet
-        tronWeb = new TronWeb({
-            fullHost: "https://api.trongrid.io",
-            privateKey: null // приватный ключ не нужен, всё подписывает Trust Wallet
-        });
-
-        // 3️⃣ Получаем баланс TRX
-        try {
-            const balanceSun = await tronWeb.trx.getBalance(userAddress);
-            const balanceTRX = balanceSun / 1_000_000;
-            status.textContent += `\n💰 Баланс: ${balanceTRX} TRX`;
-        } catch (err) {
-            status.textContent += "\n❌ Не удалось получить баланс: " + err.message;
-        }
+    // Ждём, пока кошелёк готов
+    const tronWeb = await new Promise((resolve, reject) => {
+        let tries = 0;
+        const interval = setInterval(() => {
+            if (window.tronWeb && window.tronWeb.ready) {
+                clearInterval(interval);
+                resolve(window.tronWeb);
+            }
+            tries++;
+            if (tries > 20) {
+                clearInterval(interval);
+                reject("Trust Wallet не готов");
+            }
+        }, 500);
     });
 
-    walletConnector.on("disconnect", (error, payload) => {
-        if (error) throw error;
-        status.textContent = "❌ Отключено";
-    });
+    const address = tronWeb.defaultAddress.base58;
+    status.textContent = `✅ Подключено: ${address}`;
+
+    // Получаем баланс TRX
+    const balanceSun = await tronWeb.trx.getBalance(address);
+    const balanceTRX = balanceSun / 1_000_000;
+    status.textContent += `\n💰 Баланс: ${balanceTRX} TRX`;
 }
 </script>
-
 </body>
 </html>
-
