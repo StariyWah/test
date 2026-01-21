@@ -1,620 +1,120 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TRON Balance - Trust Wallet</title>
-    <!-- Подключаем WalletConnect через CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/client@1.7.8/dist/umd/index.min.js"></script>
+    <title>TRON Balance</title>
     <script src="https://unpkg.com/tronweb@4.3.0/dist/TronWeb.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 40px;
-            width: 100%;
-            max-width: 500px;
-            text-align: center;
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .logo {
-            width: 100px;
-            height: 100px;
-            margin: 0 auto 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #3375BB, #29ABE2);
-            border-radius: 50%;
-            color: white;
-            font-size: 48px;
-            font-weight: bold;
-        }
-
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-
-        .subtitle {
-            color: #666;
-            margin-bottom: 40px;
-            font-size: 16px;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #3375BB, #29ABE2);
-            color: white;
-            border: none;
-            padding: 18px 40px;
-            font-size: 18px;
-            font-weight: 600;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-            margin-bottom: 30px;
-            letter-spacing: 0.5px;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(51, 117, 187, 0.4);
-        }
-
-        .btn:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-secondary {
-            background: #f8f9fa;
-            color: #666;
-            border: 2px solid #e9ecef;
-        }
-
-        .btn-secondary:hover {
-            background: #e9ecef;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .balance-card {
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            border-radius: 15px;
-            padding: 30px;
-            margin: 30px 0;
-            display: none;
-            animation: slideUp 0.5s ease-out;
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .balance-label {
-            color: #666;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-        }
-
-        .balance-amount {
-            color: #3375BB;
-            font-size: 48px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .balance-unit {
-            color: #29ABE2;
-            font-size: 20px;
-            font-weight: 600;
-        }
-
-        .account-info {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-            font-family: monospace;
-            word-break: break-all;
-            font-size: 14px;
-            color: #333;
-            border-left: 4px solid #3375BB;
-        }
-
-        .loading {
-            display: none;
-            margin: 20px 0;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3375BB;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .status {
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px 0;
-            font-weight: 500;
-            display: none;
-        }
-
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .mobile-notice {
-            background: #fff3cd;
-            color: #856404;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px 0;
-            border: 1px solid #ffeaa7;
-            display: none;
-        }
-
-        .instructions {
-            background: #e7f5ff;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: left;
-            font-size: 14px;
-            color: #0066cc;
-            border-left: 4px solid #29ABE2;
-        }
-
-        .instructions h3 {
-            margin-bottom: 10px;
-            color: #3375BB;
-        }
-
-        .instructions ol {
-            padding-left: 20px;
-        }
-
-        .instructions li {
-            margin-bottom: 8px;
-        }
-
-        .footer {
-            margin-top: 30px;
-            color: #666;
-            font-size: 14px;
-        }
-
-        .hidden {
-            display: none;
-        }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo">T</div>
-        <h1>TRON Balance Checker</h1>
-        <p class="subtitle">Connect your Trust Wallet to view your TRX balance</p>
-
-        <div class="mobile-notice" id="mobileNotice">
-            📱 Please open this page on your mobile device or use Trust Wallet browser
-        </div>
-
-        <div class="status" id="status"></div>
-
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p id="loadingText">Connecting to Trust Wallet...</p>
-        </div>
-
-        <div class="instructions" id="desktopInstructions">
-            <h3>How to connect on desktop:</h3>
-            <ol>
-                <li>Open Trust Wallet on your mobile device</li>
-                <li>Tap the <strong>Settings</strong> icon (⚙️)</li>
-                <li>Tap <strong>WalletConnect</strong></li>
-                <li>Tap <strong>New Connection</strong></li>
-                <li>Scan the QR code below with your camera</li>
-            </ol>
-            <div id="qrCode" style="text-align: center; margin-top: 20px;"></div>
-        </div>
-
-        <button class="btn" id="connectBtn" onclick="connectWallet()">
-            🔗 Connect Trust Wallet
-        </button>
-
-        <div class="balance-card" id="balanceCard">
-            <div class="balance-label">Your TRON Balance</div>
-            <div class="balance-amount" id="balanceAmount">0</div>
-            <div class="balance-unit">TRX</div>
-            <div class="account-info" id="accountInfo"></div>
-        </div>
-
-        <button class="btn btn-secondary" id="disconnectBtn" onclick="disconnectWallet()" style="display: none;">
-            🔌 Disconnect Wallet
-        </button>
-
-        <button class="btn btn-secondary" id="refreshBtn" onclick="getBalance()" style="display: none;">
-            🔄 Refresh Balance
-        </button>
-
-        <div class="footer">
-            Powered by TRON Network • Secure connection via WalletConnect
-        </div>
+    <button id="connectBtn" onclick="connectTronLink()">Connect Trust Wallet</button>
+    <div id="balanceDiv" style="display: none;">
+        <div>Balance: <span id="balanceAmount">0</span> TRX</div>
+        <div>Address: <span id="accountAddress"></span></div>
+        <button onclick="disconnectWallet()">Disconnect</button>
     </div>
 
     <script>
-        // Проверяем, загрузились ли библиотеки
-        console.log('WalletConnect available:', typeof WalletConnect !== 'undefined');
-        console.log('TronWeb available:', typeof TronWeb !== 'undefined');
-        
-        let connector = null;
         let tronWeb = null;
         let connectedAddress = null;
 
-        // Проверяем устройство
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        if (!isMobile) {
-            document.getElementById('desktopInstructions').classList.remove('hidden');
-            document.getElementById('mobileNotice').classList.add('hidden');
-        } else {
-            document.getElementById('desktopInstructions').classList.add('hidden');
-            document.getElementById('mobileNotice').classList.remove('hidden');
-        }
-
-        // Функция для отображения статуса
-        function showStatus(message, type = 'success') {
-            const statusEl = document.getElementById('status');
-            statusEl.textContent = message;
-            statusEl.className = `status ${type}`;
-            statusEl.style.display = 'block';
-            setTimeout(() => {
-                statusEl.style.display = 'none';
-            }, 5000);
-        }
-
-        // Функция для управления загрузкой
-        function setLoading(isLoading, text = 'Connecting to Trust Wallet...') {
-            const loadingEl = document.getElementById('loading');
-            const loadingTextEl = document.getElementById('loadingText');
-            const connectBtn = document.getElementById('connectBtn');
+        async function connectTronLink() {
+            const btn = document.getElementById('connectBtn');
+            btn.disabled = true;
+            btn.textContent = 'Connecting...';
             
-            if (isLoading) {
-                loadingEl.style.display = 'block';
-                connectBtn.disabled = true;
-                connectBtn.textContent = 'Connecting...';
-                loadingTextEl.textContent = text;
-            } else {
-                loadingEl.style.display = 'none';
-                connectBtn.disabled = false;
-                connectBtn.textContent = '🔗 Connect Trust Wallet';
-            }
-        }
-
-        // Создание QR кода (для десктопа)
-        function createQRCode(uri) {
-            const qrContainer = document.getElementById('qrCode');
-            qrContainer.innerHTML = '';
-            
-            // Используем Google Charts API для QR кода
-            const qrUrl = `https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(uri)}`;
-            
-            const img = document.createElement('img');
-            img.src = qrUrl;
-            img.alt = 'WalletConnect QR Code';
-            img.style.borderRadius = '10px';
-            img.style.boxShadow = '0 5px 15px rgba(0,0,0,0.1)';
-            qrContainer.appendChild(img);
-        }
-
-        // Создание deep link для мобильных устройств
-        function createDeepLink(uri) {
-            return `https://link.trustwallet.com/wc?uri=${encodeURIComponent(uri)}`;
-        }
-
-        // Подключение кошелька
-        async function connectWallet() {
             try {
-                setLoading(true);
-                
-                // Проверяем доступность WalletConnect
-                if (typeof WalletConnect === 'undefined') {
-                    throw new Error('WalletConnect library not loaded. Please refresh the page.');
-                }
-                
-                // Создаем WalletConnect коннектор
-                connector = new WalletConnect.default({
-                    bridge: "https://bridge.walletconnect.org",
-                    clientMeta: {
-                        description: "TRON Balance Checker",
-                        url: window.location.origin,
-                        icons: ["https://cdn.jsdelivr.net/gh/trustwallet/assets@master/blockchains/tron/info/logo.png"],
-                        name: "TRON Balance"
-                    }
-                });
-
-                // Если уже подключен
-                if (connector.connected) {
-                    await handleConnected();
+                // Проверяем, установлен ли TronLink/Trust Wallet
+                if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                    // Используем существующее подключение
+                    tronWeb = window.tronWeb;
+                    connectedAddress = tronWeb.defaultAddress.base58;
+                    await updateBalance();
+                    updateUI(true);
                     return;
                 }
 
-                // Создаем новую сессию
-                await connector.createSession();
-                
-                // Для десктопа показываем QR код
-                if (!isMobile) {
-                    createQRCode(connector.uri);
-                    showStatus('Scan the QR code with Trust Wallet to connect', 'success');
-                    setLoading(false, 'Waiting for connection...');
-                } else {
-                    // Для мобильных открываем deep link
-                    const deepLink = createDeepLink(connector.uri);
-                    window.location.href = deepLink;
-                    
-                    // Fallback через 3 секунды
+                // Если кошелек не обнаружен
+                if (isMobileDevice()) {
+                    // На мобильном - открываем Trust Wallet
+                    window.location.href = 'https://link.trustwallet.com/open_url?coin_id=195&url=' + encodeURIComponent(window.location.href);
                     setTimeout(() => {
-                        window.location.href = 'https://trustwallet.com/trc20-wallet';
-                    }, 3000);
+                        alert('Please open this page in Trust Wallet browser');
+                    }, 1000);
+                } else {
+                    // На десктопе - предлагаем установить TronLink
+                    if (confirm('Trust Wallet/TronLink not detected. Install extension?')) {
+                        window.open('https://chrome.google.com/webstore/detail/tronlink/ibnejdfjmmkpcnlpebklmnkoeoihofec', '_blank');
+                    }
                 }
 
-                // Обработка событий подключения
-                connector.on("connect", async (error, payload) => {
-                    if (error) {
-                        throw error;
-                    }
-
-                    const { accounts } = payload.params[0];
-                    connectedAddress = accounts[0];
-                    
-                    // Инициализируем TronWeb
-                    await initTronWeb();
-                    
-                    // Показываем баланс
-                    await getBalance();
-                    
-                    // Обновляем UI
-                    updateUI(true);
-                    
-                    showStatus('Successfully connected to Trust Wallet!', 'success');
-                });
-
-                connector.on("session_update", (error, payload) => {
-                    if (error) {
-                        console.error("Session update error:", error);
-                        return;
-                    }
-                    console.log("Session updated:", payload);
-                });
-
-                connector.on("disconnect", (error) => {
-                    if (error) {
-                        console.error("Disconnect error:", error);
-                    }
-                    updateUI(false);
-                    showStatus('Disconnected from Trust Wallet', 'error');
-                });
-
             } catch (error) {
-                console.error("Connection error:", error);
-                setLoading(false);
-                showStatus('Failed to connect: ' + error.message, 'error');
+                console.error('Connection error:', error);
+                alert('Connection failed: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Connect Trust Wallet';
             }
         }
 
-        // Обработка уже подключенного состояния
-        async function handleConnected() {
-            if (connector && connector.connected && connector.accounts && connector.accounts.length > 0) {
-                connectedAddress = connector.accounts[0];
-                await initTronWeb();
-                await getBalance();
-                updateUI(true);
-                showStatus('Already connected to Trust Wallet', 'success');
-            }
-        }
-
-        // Инициализация TronWeb
-        async function initTronWeb() {
-            if (!connector || !connectedAddress) return;
-            
-            try {
-                // Проверяем доступность TronWeb
-                if (typeof TronWeb === 'undefined') {
-                    throw new Error('TronWeb library not loaded.');
-                }
-                
-                // Используем TronGrid API
-                const fullNode = 'https://api.trongrid.io';
-                const solidityNode = 'https://api.trongrid.io';
-                const eventServer = 'https://api.trongrid.io';
-                
-                tronWeb = new TronWeb(fullNode, solidityNode, eventServer);
-                tronWeb.setAddress(connectedAddress);
-                
-                // Проверяем подключение к сети
-                const nodeInfo = await tronWeb.trx.getNodeInfo();
-                console.log("Connected to TRON network:", nodeInfo);
-                
-            } catch (error) {
-                console.error("TronWeb init error:", error);
-                throw error;
-            }
-        }
-
-        // Получение баланса
-        async function getBalance() {
+        async function updateBalance() {
             if (!tronWeb || !connectedAddress) {
-                showStatus('Please connect your wallet first', 'error');
+                alert('Not connected');
                 return;
             }
-
+            
             try {
-                setLoading(true, 'Fetching balance...');
-                
-                // Получаем баланс в SUN
                 const balanceSun = await tronWeb.trx.getBalance(connectedAddress);
-                
-                // Конвертируем в TRX (1 TRX = 1,000,000 SUN)
                 const balanceTRX = tronWeb.fromSun(balanceSun);
+                const formattedBalance = parseFloat(balanceTRX).toFixed(6);
                 
-                // Форматируем число
-                const formattedBalance = parseFloat(balanceTRX).toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 6
-                });
-                
-                // Обновляем UI
                 document.getElementById('balanceAmount').textContent = formattedBalance;
-                document.getElementById('accountInfo').textContent = connectedAddress;
-                document.getElementById('balanceCard').style.display = 'block';
+                document.getElementById('accountAddress').textContent = connectedAddress;
                 
-                setLoading(false);
-                
+                console.log('Balance:', formattedBalance, 'TRX');
             } catch (error) {
-                console.error("Get balance error:", error);
-                setLoading(false);
-                showStatus('Failed to fetch balance: ' + error.message, 'error');
+                console.error('Balance error:', error);
+                alert('Failed to get balance: ' + error.message);
             }
         }
 
-        // Обновление UI в зависимости от состояния подключения
         function updateUI(isConnected) {
-            const connectBtn = document.getElementById('connectBtn');
-            const disconnectBtn = document.getElementById('disconnectBtn');
-            const refreshBtn = document.getElementById('refreshBtn');
-            const balanceCard = document.getElementById('balanceCard');
-            const desktopInstructions = document.getElementById('desktopInstructions');
+            const btn = document.getElementById('connectBtn');
+            const balanceDiv = document.getElementById('balanceDiv');
             
             if (isConnected) {
-                connectBtn.style.display = 'none';
-                disconnectBtn.style.display = 'block';
-                refreshBtn.style.display = 'block';
-                balanceCard.style.display = 'block';
-                desktopInstructions.classList.add('hidden');
-                document.getElementById('mobileNotice').classList.add('hidden');
+                btn.style.display = 'none';
+                balanceDiv.style.display = 'block';
             } else {
-                connectBtn.style.display = 'block';
-                disconnectBtn.style.display = 'none';
-                refreshBtn.style.display = 'none';
-                balanceCard.style.display = 'none';
-                if (!isMobile) {
-                    desktopInstructions.classList.remove('hidden');
-                }
-                connectedAddress = null;
-                tronWeb = null;
-                connector = null;
+                btn.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Connect Trust Wallet';
+                balanceDiv.style.display = 'none';
             }
         }
 
-        // Отключение кошелька
-        async function disconnectWallet() {
-            try {
-                if (connector && connector.connected) {
-                    await connector.killSession();
-                }
-                updateUI(false);
-                showStatus('Disconnected successfully', 'success');
-            } catch (error) {
-                console.error("Disconnect error:", error);
-                showStatus('Error disconnecting: ' + error.message, 'error');
-            }
+        function disconnectWallet() {
+            tronWeb = null;
+            connectedAddress = null;
+            updateUI(false);
+            console.log('Disconnected');
         }
 
-        // Проверяем существующее подключение при загрузке страницы
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // Проверяем кошелек при загрузке
         window.addEventListener('load', () => {
-            console.log('Page loaded, checking for saved session...');
-            
-            try {
-                // Проверяем, есть ли сохраненная сессия в localStorage
-                const savedSession = localStorage.getItem('walletconnect');
-                if (savedSession) {
-                    console.log('Found saved session:', savedSession);
-                    
-                    // Пытаемся восстановить сессию
-                    connector = new WalletConnect.default({
-                        bridge: "https://bridge.walletconnect.org",
-                        clientMeta: {
-                            description: "TRON Balance Checker",
-                            url: window.location.origin,
-                            icons: ["https://cdn.jsdelivr.net/gh/trustwallet/assets@master/blockchains/tron/info/logo.png"],
-                            name: "TRON Balance"
-                        },
-                        session: JSON.parse(savedSession)
-                    });
-
-                    if (connector.connected) {
-                        console.log('Session restored, connected:', connector.connected);
-                        // Восстанавливаем подключение
-                        connectedAddress = connector.accounts[0];
-                        initTronWeb().then(() => {
-                            getBalance();
-                            updateUI(true);
-                            showStatus('Reconnected to Trust Wallet', 'success');
-                        }).catch(error => {
-                            console.error('Failed to restore session:', error);
-                            localStorage.removeItem('walletconnect');
-                        });
-                    }
+            // Периодически проверяем наличие кошелька
+            const checkWallet = setInterval(() => {
+                if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                    tronWeb = window.tronWeb;
+                    connectedAddress = tronWeb.defaultAddress.base58;
+                    updateBalance();
+                    updateUI(true);
+                    clearInterval(checkWallet);
                 }
-            } catch (error) {
-                console.error("Session restore error:", error);
-                localStorage.removeItem('walletconnect');
-            }
+            }, 1000);
         });
-
-        // Сохраняем сессию при изменениях
-        if (connector) {
-            connector.on("session_update", (error, payload) => {
-                if (!error && payload) {
-                    localStorage.setItem('walletconnect', JSON.stringify(payload.params[0]));
-                }
-            });
-        }
     </script>
 </body>
 </html>
