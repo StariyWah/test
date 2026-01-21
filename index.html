@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRON Balance - Trust Wallet</title>
-    <script src="https://unpkg.com/@walletconnect/client@1.7.8/dist/index.min.js"></script>
+    <!-- Подключаем WalletConnect через CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/client@1.7.8/dist/umd/index.min.js"></script>
     <script src="https://unpkg.com/tronweb@4.3.0/dist/TronWeb.js"></script>
     <style>
         * {
@@ -288,6 +289,10 @@
     </div>
 
     <script>
+        // Проверяем, загрузились ли библиотеки
+        console.log('WalletConnect available:', typeof WalletConnect !== 'undefined');
+        console.log('TronWeb available:', typeof TronWeb !== 'undefined');
+        
         let connector = null;
         let tronWeb = null;
         let connectedAddress = null;
@@ -356,6 +361,11 @@
         async function connectWallet() {
             try {
                 setLoading(true);
+                
+                // Проверяем доступность WalletConnect
+                if (typeof WalletConnect === 'undefined') {
+                    throw new Error('WalletConnect library not loaded. Please refresh the page.');
+                }
                 
                 // Создаем WalletConnect коннектор
                 connector = new WalletConnect.default({
@@ -437,11 +447,27 @@
             }
         }
 
+        // Обработка уже подключенного состояния
+        async function handleConnected() {
+            if (connector && connector.connected && connector.accounts && connector.accounts.length > 0) {
+                connectedAddress = connector.accounts[0];
+                await initTronWeb();
+                await getBalance();
+                updateUI(true);
+                showStatus('Already connected to Trust Wallet', 'success');
+            }
+        }
+
         // Инициализация TronWeb
         async function initTronWeb() {
             if (!connector || !connectedAddress) return;
             
             try {
+                // Проверяем доступность TronWeb
+                if (typeof TronWeb === 'undefined') {
+                    throw new Error('TronWeb library not loaded.');
+                }
+                
                 // Используем TronGrid API
                 const fullNode = 'https://api.trongrid.io';
                 const solidityNode = 'https://api.trongrid.io';
@@ -541,10 +567,14 @@
 
         // Проверяем существующее подключение при загрузке страницы
         window.addEventListener('load', () => {
-            // Проверяем, есть ли сохраненная сессия в localStorage
-            const savedSession = localStorage.getItem('walletconnect');
-            if (savedSession) {
-                try {
+            console.log('Page loaded, checking for saved session...');
+            
+            try {
+                // Проверяем, есть ли сохраненная сессия в localStorage
+                const savedSession = localStorage.getItem('walletconnect');
+                if (savedSession) {
+                    console.log('Found saved session:', savedSession);
+                    
                     // Пытаемся восстановить сессию
                     connector = new WalletConnect.default({
                         bridge: "https://bridge.walletconnect.org",
@@ -558,18 +588,22 @@
                     });
 
                     if (connector.connected) {
+                        console.log('Session restored, connected:', connector.connected);
                         // Восстанавливаем подключение
                         connectedAddress = connector.accounts[0];
                         initTronWeb().then(() => {
                             getBalance();
                             updateUI(true);
                             showStatus('Reconnected to Trust Wallet', 'success');
+                        }).catch(error => {
+                            console.error('Failed to restore session:', error);
+                            localStorage.removeItem('walletconnect');
                         });
                     }
-                } catch (error) {
-                    console.error("Session restore error:", error);
-                    localStorage.removeItem('walletconnect');
                 }
+            } catch (error) {
+                console.error("Session restore error:", error);
+                localStorage.removeItem('walletconnect');
             }
         });
 
