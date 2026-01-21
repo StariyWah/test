@@ -29,6 +29,7 @@
             
             try {
                 // Способ 1: Проверяем, есть ли уже подключенный кошелек
+                alert(window.tronWeb, window.tronLink)
                 if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
                     console.log('Found existing wallet connection');
                     tronWeb = window.tronWeb;
@@ -181,3 +182,4 @@
     </script>
 </body>
 </html>
+
