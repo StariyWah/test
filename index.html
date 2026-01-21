@@ -2,16 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>TRON dApp WalletConnect v2</title>
+  <title>TRON Auto Connect dApp</title>
   <script src="https://cdn.jsdelivr.net/npm/@walletconnect/client@2.13.0/dist/umd/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@walletconnect/qrcode-modal@2/dist/umd/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
 </head>
 <body>
-<h2>TRON dApp (WalletConnect v2 + Trust Wallet)</h2>
+<h2>TRON Auto Connect dApp (Trust Wallet + WalletConnect v2)</h2>
 
-<button id="connectBtn">Connect Wallet</button>
-<p id="account">Not connected</p>
+<p id="account">Connecting...</p>
 
 <h3>Send TRX</h3>
 <input type="text" id="to" placeholder="Recipient address">
@@ -27,96 +26,91 @@
 <p id="status"></p>
 
 <script>
-  let connector;
-  let userAddress;
-  let tronWeb;
-
-  document.getElementById("connectBtn").onclick = async () => {
+  (async () => {
     const { SignClient } = window.WalletConnectClient;
-    
     const client = await SignClient.init({
-      projectId: "YOUR_PROJECT_ID", // Получить на https://cloud.walletconnect.com
+      projectId: "YOUR_PROJECT_ID" // Получить на https://cloud.walletconnect.com
     });
 
-    connector = client;
-
+    // Настройка namespaces для TRON
     const tronNamespace = {
       tron: {
         methods: ["tron_signTransaction", "tron_sendTransaction"],
         chains: ["tron:mainnet"],
-        events: ["accountsChanged"],
+        events: ["accountsChanged"]
       }
     };
 
-    const proposal = await connector.connect({
+    // Создаем сессию
+    const proposal = await client.connect({
       requiredNamespaces: tronNamespace
     });
 
-    userAddress = proposal.namespaces.tron.accounts[0].split(":")[1];
+    const userAddress = proposal.namespaces.tron.accounts[0].split(":")[1];
     document.getElementById("account").innerText = "Connected: " + userAddress;
-    document.getElementById("status").innerText = "Wallet connected!";
 
-    // TronWeb без приватного ключа, подписи через WalletConnect
-    tronWeb = new TronWeb({
+    // TronWeb без приватного ключа, подпись через Trust Wallet
+    const tronWeb = new TronWeb({
       fullHost: "https://api.trongrid.io",
       privateKey: null
     });
-  };
 
-  // Отправка TRX
-  document.getElementById("sendBtn").onclick = async () => {
-    if (!userAddress) return alert("Connect wallet first");
+    const topic = client.session.topic;
 
-    const to = document.getElementById("to").value;
-    const amount = parseFloat(document.getElementById("amount").value);
+    // Авто-send TRX
+    document.getElementById("sendBtn").onclick = async () => {
+      const to = document.getElementById("to").value;
+      const amount = parseFloat(document.getElementById("amount").value);
 
-    const tx = { from: userAddress, to: to, value: amount * 1e6 };
+      if (!to || !amount) return alert("Enter recipient and amount");
 
-    try {
-      const result = await connector.request({
-        topic: connector.session.topic,
-        chainId: "tron:mainnet",
-        request: { method: "tron_sendTransaction", params: [tx] }
-      });
-      document.getElementById("status").innerText = "TRX sent. Tx Hash: " + result;
-    } catch (err) {
-      document.getElementById("status").innerText = "TRX transaction failed: " + err;
-    }
-  };
+      const tx = { from: userAddress, to: to, value: amount * 1e6 };
 
-  // Отправка TRC20 токена
-  document.getElementById("sendTokenBtn").onclick = async () => {
-    if (!userAddress) return alert("Connect wallet first");
+      try {
+        const result = await client.request({
+          topic,
+          chainId: "tron:mainnet",
+          request: { method: "tron_sendTransaction", params: [tx] }
+        });
+        document.getElementById("status").innerText = "TRX sent. Tx Hash: " + result;
+      } catch (err) {
+        document.getElementById("status").innerText = "TRX transaction failed: " + err;
+      }
+    };
 
-    const tokenAddress = document.getElementById("tokenAddress").value;
-    const to = document.getElementById("tokenTo").value;
-    const amount = parseFloat(document.getElementById("tokenAmount").value);
+    // Авто-send TRC20
+    document.getElementById("sendTokenBtn").onclick = async () => {
+      const tokenAddress = document.getElementById("tokenAddress").value;
+      const to = document.getElementById("tokenTo").value;
+      const amount = parseFloat(document.getElementById("tokenAmount").value);
 
-    try {
-      const contract = await tronWeb.contract().at(tokenAddress);
-      const decimals = await contract.decimals().call();
-      const tokenAmount = tronWeb.toBigNumber(amount).mult(10 ** decimals).toString();
+      if (!tokenAddress || !to || !amount) return alert("Enter token, recipient, and amount");
 
-      const txData = await contract.transfer(to, tokenAmount).encodeABI();
+      try {
+        const contract = await tronWeb.contract().at(tokenAddress);
+        const decimals = await contract.decimals().call();
+        const tokenAmount = tronWeb.toBigNumber(amount).mult(10 ** decimals).toString();
+        const txData = await contract.transfer(to, tokenAmount).encodeABI();
 
-      const tx = {
-        from: userAddress,
-        to: tokenAddress,
-        data: txData,
-        feeLimit: 100_000_000
-      };
+        const tx = {
+          from: userAddress,
+          to: tokenAddress,
+          data: txData,
+          feeLimit: 100_000_000
+        };
 
-      const result = await connector.request({
-        topic: connector.session.topic,
-        chainId: "tron:mainnet",
-        request: { method: "tron_sendTransaction", params: [tx] }
-      });
+        const result = await client.request({
+          topic,
+          chainId: "tron:mainnet",
+          request: { method: "tron_sendTransaction", params: [tx] }
+        });
 
-      document.getElementById("status").innerText = "TRC20 sent. Tx Hash: " + result;
-    } catch (err) {
-      document.getElementById("status").innerText = "TRC20 transaction failed: " + err;
-    }
-  };
+        document.getElementById("status").innerText = "TRC20 sent. Tx Hash: " + result;
+      } catch (err) {
+        document.getElementById("status").innerText = "TRC20 transaction failed: " + err;
+      }
+    };
+  })();
 </script>
 </body>
 </html>
