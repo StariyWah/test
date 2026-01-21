@@ -1,77 +1,71 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>TRON dApp — 25 TRX</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 40px;
-        }
-        button {
-            padding: 12px 20px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        pre {
-            margin-top: 20px;
-            background: #f4f4f4;
-            padding: 15px;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>TRON dApp — WalletConnect</title>
+<script src="https://cdn.jsdelivr.net/npm/@walletconnect/client@1.7.8/dist/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
+<style>
+    body { font-family: Arial, sans-serif; padding: 40px; }
+    button { padding: 12px 20px; font-size: 16px; cursor: pointer; }
+    pre { margin-top: 20px; background: #f4f4f4; padding: 15px; white-space: pre-wrap; }
+</style>
 </head>
 <body>
 
-<h2>TRON dApp</h2>
-
-<button onclick="connectAndSend()">Подключить кошелёк и отправить 25 TRX</button>
-
+<h2>TRON dApp — WalletConnect</h2>
+<button onclick="connectWallet()">Подключить Trust Wallet</button>
 <pre id="status">Ожидание...</pre>
 
 <script>
-    const RECEIVER_ADDRESS = "TXXXXXXXXXXXXXXXXXXXXXXXXXXXX"; // ← адрес получателя
-    const AMOUNT_TRX = 25;
+let walletConnector;
+let tronWeb;
 
-    function waitForTronWeb() {
-        return new Promise((resolve, reject) => {
-            let attempts = 0;
+async function connectWallet() {
+    const status = document.getElementById("status");
+    status.textContent = "🔍 Создаём соединение с WalletConnect...";
 
-            const timer = setInterval(() => {
-                if (window.tronWeb && window.tronWeb.ready) {
-                    clearInterval(timer);
-                    resolve(window.tronWeb);
-                }
+    // 1️⃣ Создаём WalletConnect сессию
+    walletConnector = new WalletConnect.default({
+        bridge: "https://bridge.walletconnect.org"
+    });
 
-                attempts++;
-                if (attempts > 20) {
-                    clearInterval(timer);
-                    reject("TronLink не найден или кошелёк заблокирован");
-                }
-            }, 500);
+    // Если сессия не подключена, создаём новую и показываем URI
+    if (!walletConnector.connected) {
+        await walletConnector.createSession();
+        const uri = walletConnector.uri;
+        status.textContent = "📱 Отсканируйте QR-код Trust Wallet:\n" + uri;
+    }
+
+    // Подписка на события подключения
+    walletConnector.on("connect", async (error, payload) => {
+        if (error) throw error;
+
+        const { accounts } = payload.params[0];
+        const userAddress = accounts[0];
+        status.textContent = "✅ Подключено: " + userAddress;
+
+        // 2️⃣ Инициализация TronWeb с Trust Wallet
+        tronWeb = new TronWeb({
+            fullHost: "https://api.trongrid.io",
+            privateKey: null // приватный ключ не нужен, всё подписывает Trust Wallet
         });
-    }
 
-    async function connectAndSend() {
-        const status = document.getElementById("status");
-        status.textContent = "🔍 Поиск TronLink...";
-
+        // 3️⃣ Получаем баланс TRX
         try {
-            const tronWeb = await waitForTronWeb();
-
-            const from = tronWeb.defaultAddress.base58;
-            status.textContent = "✅ Кошелёк подключён:\n" + from;
-
-            const tx = await tronWeb.trx.sendTransaction(
-                RECEIVER_ADDRESS,
-                AMOUNT_TRX * 1_000_000
-            );
-
-            status.textContent += "\n\n🚀 Транзакция отправлена\nTX ID:\n" + tx.txid;
-
-        } catch (e) {
-            status.textContent = "❌ Ошибка:\n" + e;
+            const balanceSun = await tronWeb.trx.getBalance(userAddress);
+            const balanceTRX = balanceSun / 1_000_000;
+            status.textContent += `\n💰 Баланс: ${balanceTRX} TRX`;
+        } catch (err) {
+            status.textContent += "\n❌ Не удалось получить баланс: " + err.message;
         }
-    }
+    });
+
+    walletConnector.on("disconnect", (error, payload) => {
+        if (error) throw error;
+        status.textContent = "❌ Отключено";
+    });
+}
 </script>
 
 </body>
