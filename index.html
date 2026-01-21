@@ -1,72 +1,68 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Open Trust Wallet (TRON)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <title>TRON dApp Example</title>
 
-  <style>
-    body {
-      background: #0f172a;
-      color: #e5e7eb;
-      font-family: Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .card {
-      background: #020617;
-      padding: 24px;
-      border-radius: 12px;
-      max-width: 360px;
-      width: 100%;
-      text-align: center;
-    }
-    button {
-      width: 100%;
-      padding: 14px;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-      background: #2563eb;
-      color: #fff;
-    }
-    .hint {
-      margin-top: 12px;
-      font-size: 14px;
-      opacity: 0.85;
-    }
-  </style>
+    <!-- TronWeb CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #status {
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
 
-  <div class="card">
-    <h2>Открыть TRON в Trust Wallet</h2>
+<h2>TRON dApp</h2>
 
-    <!-- Deeplink TRON (coin_id=195) -->
-    <a
-      href="https://link.trustwallet.com/open_url?coin_id=195&url=https://stariywah.github.io/test"
-      target="_blank"
-      rel="noopener"
-    >
-      <button>Открыть Trust Wallet (TRX)</button>
-    </a>
+<button onclick="connectAndSend()">Подключить кошелёк и отправить 25 TRX</button>
 
-    <div class="hint">
-      Требуется установленный :contentReference[oaicite:0]{index=0}<br/>
-      Сеть: <b>TRON (TRX)</b>
-    </div>
-    <pre id="status">
-      
-    </pre>
-  </div>
- <script>
-   alert(window.tronWeb)
-   document.getElementById("status").innerText = window;
- </script>
+<div id="status"></div>
+
+<script>
+    const RECEIVER_ADDRESS = "TXXXXXXXXXXXXXXXXXXXXXXXXXXXX"; // ← адрес получателя
+    const AMOUNT_TRX = 25;
+
+    async function connectAndSend() {
+        const status = document.getElementById("status");
+        alert(window.tronWeb)
+        if (!window.tronWeb || !window.tronWeb.ready) {
+            status.innerText = "❌ TronLink не найден или не подключён";
+            return;
+        }
+
+        try {
+            // Запрос доступа к аккаунту (TronLink popup)
+            const accounts = await window.tronWeb.request({ method: 'tron_requestAccounts' });
+
+            const fromAddress = window.tronWeb.defaultAddress.base58;
+            status.innerText = `✅ Подключено: ${fromAddress}`;
+
+            // Отправка TRX (1 TRX = 1_000_000 SUN)
+            const tx = await window.tronWeb.trx.sendTransaction(
+                RECEIVER_ADDRESS,
+                AMOUNT_TRX * 1_000_000
+            );
+
+            status.innerText += "\n🚀 Транзакция отправлена\nTX ID: " + tx.txid;
+
+        } catch (error) {
+            console.error(error);
+            status.innerText = "❌ Ошибка: " + error.message;
+        }
+    }
+</script>
+
 </body>
 </html>
-
-
